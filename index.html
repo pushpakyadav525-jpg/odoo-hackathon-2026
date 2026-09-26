@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StockSense</title>
+<style>
+:root{
+  --bg:#12151A; --panel:#1B2027; --panel2:#20262E; --border:#2D343D;
+  --text:#EDEAE2; --sub:#8D9299; --green:#4E9B6E; --green2:#6FBE8C; --amber:#D08A3E; --red:#C0655F;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  --crate:repeating-linear-gradient(45deg, rgba(78,155,110,0.05) 0 2px, transparent 2px 14px);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--bg:#F3F1EC;--panel:#FFFFFF;--panel2:#F7F5F0;--border:#DEDAD1;--text:#1C2126;--sub:#6B6F76;}
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{background:
+    radial-gradient(circle at 15% 0%, rgba(78,155,110,0.10), transparent 45%),
+    radial-gradient(circle at 100% 20%, rgba(208,138,62,0.07), transparent 40%),
+    var(--bg);
+  color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+a{color:inherit;}
+.hidden{display:none !important;}
+/* --- login --- */
+#login{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--border);border-top:3px solid var(--green);
+  padding:32px 28px;position:relative;box-shadow:0 30px 60px -30px rgba(0,0,0,.55);}
+.login-card:before{content:"";position:absolute;inset:0;background:var(--crate);pointer-events:none;opacity:.6;}
+.login-card h1{font-size:24px;margin:0 0 4px;letter-spacing:.2px;position:relative;}
+.login-card h1:before{content:"📦 ";}
+.login-card p.tag,.login-card .field,.login-card .btn,.login-card p{position:relative;}
+.login-card p.tag{color:var(--sub);font-size:13px;margin:0 0 24px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:5px;}
+.field input,.field select{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  padding:9px 10px;font-size:14px;font-family:inherit;}
+.field input:focus,.field select:focus{outline:2px solid var(--green);outline-offset:1px;}
+.btn{background:var(--green);color:#fff;border:none;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit;}
+.btn:hover{filter:brightness(1.08);}
+.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn.small{padding:6px 10px;font-size:12px;}
+.btn.danger{background:var(--red);}
+.linklike{background:none;border:none;color:var(--green);cursor:pointer;font-size:12px;padding:0;font-family:inherit;}
+.err{color:var(--red);font-size:12px;margin:-6px 0 10px;}
+.msg{font-size:12px;color:var(--green);margin:8px 0 0;}
+/* --- app shell --- */
+#app{display:flex;min-height:100vh;height:100%;}
+#sidebar{width:190px;flex:none;background:var(--panel);border-right:1px solid var(--border);
+  padding:16px 0;display:flex;flex-direction:column;}
+#sidebar .brand{padding:0 16px 16px;font-weight:600;font-size:15.5px;border-bottom:1px solid var(--border);margin-bottom:8px;
+  display:flex;align-items:center;gap:7px;}
+#sidebar .brand:before{content:"📦";font-size:16px;}
+#sidebar .brand span{color:var(--green2);}
+.navbtn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--sub);
+  padding:9px 16px;font-size:13.5px;cursor:pointer;font-family:inherit;border-left:2px solid transparent;}
+.navbtn:hover{color:var(--text);}
+.navbtn.active{color:var(--text);border-left:2px solid var(--green);background:var(--panel2);}
+.navspacer{flex:1;}
+#main{flex:1;padding:20px 24px;overflow-x:auto;max-width:100%;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:8px;}
+.topbar h2{margin:0;font-size:19px;}
+.view{max-width:1100px;}
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.kpi{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--green);padding:14px;position:relative;overflow:hidden;}
+.kpi:after{content:"";position:absolute;inset:0;background:var(--crate);opacity:.5;pointer-events:none;}
+.kpi.warn{border-left-color:var(--amber);}
+.kpi.bad{border-left-color:var(--red);}
+.kpi .n{font-size:25px;font-weight:600;font-family:var(--mono);position:relative;}
+.kpi .l{position:relative;}
+.topbar h2{position:relative;padding-bottom:8px;}
+.topbar h2:after{content:"";position:absolute;left:0;bottom:0;width:36px;height:3px;background:linear-gradient(90deg,var(--green),var(--amber));}
+.kpi .l{font-size:11.5px;color:var(--sub);margin-top:3px;}
+.kpi.warn .n{color:var(--amber);}
+.kpi.bad .n{color:var(--red);}
+/* filter row */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.filters select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;font-size:12.5px;font-family:inherit;}
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--border);background:var(--panel);}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:13px;}
+th{text-align:left;color:var(--sub);font-size:11px;text-transform:uppercase;letter-spacing:.03em;
+  padding:9px 10px;border-bottom:1px solid var(--border);}
+td{padding:9px 10px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+.mono{font-family:var(--mono);}
+.badge{font-size:11px;padding:2px 7px;border:1px solid var(--border);display:inline-block;}
+.badge.Draft{color:var(--sub);}
+.badge.Waiting{color:var(--amber);border-color:var(--amber);}
+.badge.Ready{color:#5B9BD5;border-color:#5B9BD5;}
+.badge.Done{color:var(--green);border-color:var(--green);}
+.badge.Canceled{color:var(--red);border-color:var(--red);}
+.section-card{background:var(--panel);border:1px solid var(--border);padding:16px;margin-bottom:16px;}
+.section-card h3{margin:0 0 12px;font-size:14px;}
+.formrow{display:flex;gap:10px;flex-wrap:wrap;}
+.formrow .field{flex:1;min-width:140px;}
+.actions{display:flex;gap:6px;}
+.emptystate{padding:26px;text-align:center;color:var(--sub);font-size:13px;}
+.note{font-size:12px;color:var(--sub);margin-top:6px;}
+@media (max-width:680px){
+  #app{flex-direction:column;}
+  #sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:8px;border-right:none;border-bottom:1px solid var(--border);}
+  #sidebar .brand{display:none;}
+  .navspacer{display:none;}
+  .navbtn{white-space:nowrap;border-left:none;border-bottom:2px solid transparent;}
+  .navbtn.active{border-left:none;border-bottom:2px solid var(--green);}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <h1>StockSense</h1>
+    <p class="tag">Inventory, receipts, deliveries and transfers — in one place.</p>
+    <div id="loginErr" class="err hidden"></div>
+    <div id="otpBlock" class="hidden">
+      <div class="field"><label>Enter OTP (demo: 0000)</label><input id="otpInput" maxlength="4"></div>
+      <button class="btn" style="width:100%" onclick="verifyOtp()">Verify & reset password</button>
+      <p style="margin-top:10px;"><button class="linklike" onclick="showLogin()">Back to sign in</button></p>
+    </div>
+    <div id="authBlock">
+      <div class="field"><label>Email</label><input id="loginEmail" placeholder="you@company.com"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"></div>
+      <button class="btn" style="width:100%" onclick="login()">Sign in</button>
+      <p style="margin-top:12px;display:flex;justify-content:space-between;">
+        <button class="linklike" onclick="signup()">Create account</button>
+        <button class="linklike" onclick="startReset()">Forgot password?</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="brand">Stock<span>Sense</span></div>
+    <button class="navbtn" data-v="dashboard">Dashboard</button>
+    <button class="navbtn" data-v="products">Products</button>
+    <button class="navbtn" data-v="receipts">Receipts</button>
+    <button class="navbtn" data-v="deliveries">Delivery Orders</button>
+    <button class="navbtn" data-v="transfers">Internal Transfers</button>
+    <button class="navbtn" data-v="adjustments">Adjustments</button>
+    <button class="navbtn" data-v="history">Move History</button>
+    <button class="navbtn" data-v="settings">Settings</button>
+    <div class="navspacer"></div>
+    <button class="navbtn" data-v="profile">My Profile</button>
+    <button class="navbtn" onclick="logout()">Logout</button>
+  </div>
+  <div id="main"></div>
+</div>
+
+<script>
+/* ---------- state ---------- */
+const LS_KEY='stocksense_state_v1';
+let state = load() || {
+  user:{name:'Alex Rivera', email:'', role:'Inventory Manager'},
+  warehouses:['Main Warehouse','Production Floor','Rack A','Rack B'],
+  products:[
+    {id:1,name:'Steel Rods',sku:'STL-001',category:'Raw Material',uom:'kg',stock:120,reorder:50,location:'Main Warehouse'},
+    {id:2,name:'Wooden Chairs',sku:'CHR-010',category:'Finished Good',uom:'unit',stock:8,reorder:15,location:'Main Warehouse'},
+    {id:3,name:'Steel Frames',sku:'FRM-005',category:'Finished Good',uom:'unit',stock:0,reorder:10,location:'Production Floor'},
+    {id:4,name:'Packing Boxes',sku:'BOX-020',category:'Consumable',uom:'unit',stock:340,reorder:100,location:'Rack A'}
+  ],
+  ops:[
+    {id:1,type:'Receipt',status:'Done',product:'Steel Rods',qty:50,supplier:'Metro Steel Co.',warehouse:'Main Warehouse',date:'2026-09-20'},
+    {id:2,type:'Delivery',status:'Waiting',product:'Wooden Chairs',qty:10,warehouse:'Main Warehouse',date:'2026-09-24'},
+    {id:3,type:'Internal',status:'Draft',product:'Steel Rods',qty:30,from:'Main Warehouse',to:'Production Floor',date:'2026-09-25'}
+  ],
+  ledger:[
+    {date:'2026-09-20',type:'Receipt',product:'Steel Rods',qty:'+50',loc:'Main Warehouse'}
+  ],
+  nextId:4
+};
+function save(){ try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){} }
+function load(){ try{const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null;}catch(e){return null;} }
+
+/* ---------- auth ---------- */
+function showLogin(){ document.getElementById('otpBlock').classList.add('hidden'); document.getElementById('authBlock').classList.remove('hidden'); }
+function startReset(){ document.getElementById('authBlock').classList.add('hidden'); document.getElementById('otpBlock').classList.remove('hidden'); }
+function verifyOtp(){
+  const v=document.getElementById('otpInput').value;
+  if(v==='0000'){ alert('Password reset. Please sign in.'); showLogin(); } else { flashErr('Incorrect OTP — try 0000 for this demo.'); }
+}
+function flashErr(m){ const e=document.getElementById('loginErr'); e.textContent=m; e.classList.remove('hidden'); }
+function login(){
+  const email=document.getElementById('loginEmail').value.trim();
+  if(!email){ flashErr('Enter an email to continue.'); return; }
+  state.user.email=email; save();
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  navigate('dashboard');
+}
+function signup(){ document.getElementById('loginErr').classList.add('hidden'); flashErr('Demo build: enter any email + password and click Sign in to create your session.'); document.getElementById('loginErr').style.color='var(--sub)'; }
+function logout(){ document.getElementById('app').classList.add('hidden'); document.getElementById('login').classList.remove('hidden'); showLogin(); }
+
+/* ---------- nav ---------- */
+document.querySelectorAll('.navbtn[data-v]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.v)));
+function navigate(v){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
+  const renderers={dashboard,products,receipts,deliveries,transfers,adjustments,history,settings,profile};
+  document.getElementById('main').innerHTML='';
+  renderers[v]();
+}
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function el(html){ const d=document.createElement('div'); d.innerHTML=html; return d.firstElementChild; }
+function today(){ return new Date().toISOString().slice(0,10); }
+function badge(s){ return `<span class="badge ${s}">${s}</span>`; }
+function addLedger(type,product,qty,loc){ state.ledger.unshift({date:today(),type,product,qty,loc}); }
+function productByName(n){ return state.products.find(p=>p.name===n); }
+
+/* ---------- dashboard ---------- */
+function dashboard(){
+  const total=state.products.length;
+  const low=state.products.filter(p=>p.stock>0 && p.stock<=p.reorder).length;
+  const out=state.products.filter(p=>p.stock===0).length;
+  const pendR=state.ops.filter(o=>o.type==='Receipt'&&o.status!=='Done'&&o.status!=='Canceled').length;
+  const pendD=state.ops.filter(o=>o.type==='Delivery'&&o.status!=='Done'&&o.status!=='Canceled').length;
+  const schedT=state.ops.filter(o=>o.type==='Internal'&&o.status!=='Done'&&o.status!=='Canceled').length;
+
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Dashboard</h2></div>
+    <div class="kpis">
+      <div class="kpi"><div class="n">${total}</div><div class="l">Total Products</div></div>
+      <div class="kpi warn"><div class="n">${low}</div><div class="l">Low Stock Items</div></div>
+      <div class="kpi bad"><div class="n">${out}</div><div class="l">Out of Stock</div></div>
+      <div class="kpi"><div class="n">${pendR}</div><div class="l">Pending Receipts</div></div>
+      <div class="kpi"><div class="n">${pendD}</div><div class="l">Pending Deliveries</div></div>
+      <div class="kpi"><div class="n">${schedT}</div><div class="l">Transfers Scheduled</div></div>
+    </div>
+    <div class="filters">
+      <select id="fType"><option value="">All document types</option><option>Receipt</option><option>Delivery</option><option>Internal</option><option>Adjustment</option></select>
+      <select id="fStatus"><option value="">All statuses</option><option>Draft</option><option>Waiting</option><option>Ready</option><option>Done</option><option>Canceled</option></select>
+      <select id="fWh"><option value="">All warehouses</option>${state.warehouses.map(w=>`<option>${esc(w)}</option>`).join('')}</select>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Type</th><th>Product</th><th>Qty</th><th>Warehouse</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody id="opsBody"></tbody></table></div>
+  </div>`));
+  const renderRows=()=>{
+    const t=document.getElementById('fType').value, s=document.getElementById('fStatus').value, w=document.getElementById('fWh').value;
+    const rows=state.ops.filter(o=>(!t||o.type===t)&&(!s||o.status===s)&&(!w||o.warehouse===w||o.from===w||o.to===w));
+    document.getElementById('opsBody').innerHTML = rows.length? rows.map(o=>`<tr><td>${o.type}</td><td>${esc(o.product)}</td><td class="mono">${o.qty}</td>
+      <td>${esc(o.warehouse||(o.from+' → '+o.to)||'—')}</td><td class="mono">${o.date}</td><td>${badge(o.status)}</td></tr>`).join('')
+      : `<tr><td colspan="6" class="emptystate">No operations match these filters.</td></tr>`;
+  };
+  ['fType','fStatus','fWh'].forEach(id=>document.getElementById(id).addEventListener('change',renderRows));
+  renderRows();
+}
+
+/* ---------- products ---------- */
+function products(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Products</h2></div>
+    <div class="section-card"><h3>Add product</h3>
+      <div class="formrow">
+        <div class="field"><label>Name</label><input id="pName"></div>
+        <div class="field"><label>SKU / Code</label><input id="pSku"></div>
+        <div class="field"><label>Category</label><input id="pCat" placeholder="Raw Material"></div>
+        <div class="field"><label>Unit</label><input id="pUom" placeholder="unit / kg"></div>
+        <div class="field"><label>Initial stock</label><input id="pStock" type="number" value="0"></div>
+        <div class="field"><label>Reorder level</label><input id="pReorder" type="number" value="10"></div>
+      </div>
+      <button class="btn" onclick="addProduct()">Add product</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Name</th><th>SKU</th><th>Category</th><th>Location</th><th>Stock</th><th>Status</th></tr></thead>
+    <tbody id="prodBody"></tbody></table></div>
+  </div>`));
+  renderProducts();
+}
+function renderProducts(){
+  document.getElementById('prodBody').innerHTML = state.products.map(p=>{
+    const status = p.stock===0?badge('Canceled').replace('Canceled','Out of stock').replace('class="badge Canceled"','class="badge Canceled"')
+      : p.stock<=p.reorder? `<span class="badge Waiting">Low stock</span>` : `<span class="badge Done">In stock</span>`;
+    return `<tr><td>${esc(p.name)}</td><td class="mono">${esc(p.sku)}</td><td>${esc(p.category)}</td><td>${esc(p.location)}</td><td class="mono">${p.stock} ${esc(p.uom)}</td><td>${p.stock===0?'<span class="badge Canceled">Out of stock</span>':status}</td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="emptystate">No products yet.</td></tr>`;
+}
+function addProduct(){
+  const name=document.getElementById('pName').value.trim();
+  if(!name){ alert('Product name is required.'); return; }
+  state.products.push({id:++state.nextId,name,sku:document.getElementById('pSku').value||'—',
+    category:document.getElementById('pCat').value||'Uncategorized', uom:document.getElementById('pUom').value||'unit',
+    stock:Number(document.getElementById('pStock').value)||0, reorder:Number(document.getElementById('pReorder').value)||10,
+    location:state.warehouses[0]});
+  save(); products();
+}
+
+/* ---------- generic op list builder ---------- */
+function opTable(type, cols, rowFn){
+  const rows=state.ops.filter(o=>o.type===type);
+  return rows.length? rows.map(rowFn).join('') : `<tr><td colspan="${cols}" class="emptystate">Nothing here yet.</td></tr>`;
+}
+
+/* ---------- receipts ---------- */
+function receipts(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Receipts — Incoming Stock</h2></div>
+    <div class="section-card"><h3>New receipt</h3>
+      <div class="formrow">
+        <div class="field"><label>Supplier</label><input id="rSupplier"></div>
+        <div class="field"><label>Product</label><select id="rProduct">${state.products.map(p=>`<option>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Quantity received</label><input id="rQty" type="number" value="1"></div>
+        <div class="field"><label>Warehouse</label><select id="rWh">${state.warehouses.map(w=>`<option>${esc(w)}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn" onclick="addReceipt()">Create receipt (Draft)</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Supplier</th><th>Product</th><th>Qty</th><th>Warehouse</th><th>Date</th><th>Status</th><th></th></tr></thead>
+    <tbody id="rBody"></tbody></table></div>
+  </div>`));
+  renderReceipts();
+}
+function renderReceipts(){
+  document.getElementById('rBody').innerHTML = opTable('Receipt',7,o=>`<tr><td>${esc(o.supplier)}</td><td>${esc(o.product)}</td><td class="mono">${o.qty}</td>
+    <td>${esc(o.warehouse)}</td><td class="mono">${o.date}</td><td>${badge(o.status)}</td>
+    <td>${o.status==='Done'?'—':`<button class="btn small" onclick="validateReceipt(${o.id})">Validate</button>`}</td></tr>`);
+}
+function addReceipt(){
+  const qty=Number(document.getElementById('rQty').value)||0;
+  state.ops.push({id:++state.nextId,type:'Receipt',status:'Waiting',product:document.getElementById('rProduct').value,
+    qty, supplier:document.getElementById('rSupplier').value||'Unnamed supplier', warehouse:document.getElementById('rWh').value, date:today()});
+  save(); receipts();
+}
+function validateReceipt(id){
+  const o=state.ops.find(x=>x.id===id); const p=productByName(o.product);
+  if(p) p.stock+=o.qty;
+  o.status='Done'; addLedger('Receipt',o.product,'+'+o.qty,o.warehouse);
+  save(); receipts();
+}
+
+/* ---------- deliveries ---------- */
+function deliveries(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Delivery Orders — Outgoing Stock</h2></div>
+    <div class="section-card"><h3>New delivery order</h3>
+      <div class="formrow">
+        <div class="field"><label>Product</label><select id="dProduct">${state.products.map(p=>`<option>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Quantity</label><input id="dQty" type="number" value="1"></div>
+        <div class="field"><label>Warehouse</label><select id="dWh">${state.warehouses.map(w=>`<option>${esc(w)}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn" onclick="addDelivery()">Create delivery (Waiting)</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Qty</th><th>Warehouse</th><th>Date</th><th>Status</th><th></th></tr></thead>
+    <tbody id="dBody"></tbody></table></div>
+    <p class="note">Flow: Waiting → Pick → Pack → Done (stock decreases on Done).</p>
+  </div>`));
+  renderDeliveries();
+}
+function renderDeliveries(){
+  const next={Waiting:'Pick',Ready:'Pack','Picked':'Pack'};
+  document.getElementById('dBody').innerHTML = opTable('Delivery',6,o=>{
+    let action='';
+    if(o.status==='Waiting') action=`<button class="btn small" onclick="advanceDelivery(${o.id})">Pick</button>`;
+    else if(o.status==='Picked') action=`<button class="btn small" onclick="advanceDelivery(${o.id})">Pack</button>`;
+    else if(o.status==='Packed') action=`<button class="btn small" onclick="advanceDelivery(${o.id})">Validate</button>`;
+    else action='—';
+    return `<tr><td>${esc(o.product)}</td><td class="mono">${o.qty}</td><td>${esc(o.warehouse)}</td><td class="mono">${o.date}</td>
+      <td>${badge(o.status==='Picked'||o.status==='Packed'?'Ready':o.status)}</td><td>${action}</td></tr>`;
+  });
+}
+function addDelivery(){
+  const qty=Number(document.getElementById('dQty').value)||0;
+  state.ops.push({id:++state.nextId,type:'Delivery',status:'Waiting',product:document.getElementById('dProduct').value,
+    qty, warehouse:document.getElementById('dWh').value, date:today()});
+  save(); deliveries();
+}
+function advanceDelivery(id){
+  const o=state.ops.find(x=>x.id===id);
+  if(o.status==='Waiting') o.status='Picked';
+  else if(o.status==='Picked') o.status='Packed';
+  else if(o.status==='Packed'){
+    const p=productByName(o.product);
+    if(p) p.stock=Math.max(0,p.stock-o.qty);
+    o.status='Done'; addLedger('Delivery',o.product,'-'+o.qty,o.warehouse);
+  }
+  save(); deliveries();
+}
+
+/* ---------- transfers ---------- */
+function transfers(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Internal Transfers</h2></div>
+    <div class="section-card"><h3>New transfer</h3>
+      <div class="formrow">
+        <div class="field"><label>Product</label><select id="tProduct">${state.products.map(p=>`<option>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Quantity</label><input id="tQty" type="number" value="1"></div>
+        <div class="field"><label>From</label><select id="tFrom">${state.warehouses.map(w=>`<option>${esc(w)}</option>`).join('')}</select></div>
+        <div class="field"><label>To</label><select id="tTo">${state.warehouses.map(w=>`<option>${esc(w)}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn" onclick="addTransfer()">Create transfer (Draft)</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Qty</th><th>From → To</th><th>Date</th><th>Status</th><th></th></tr></thead>
+    <tbody id="tBody"></tbody></table></div>
+  </div>`));
+  renderTransfers();
+}
+function renderTransfers(){
+  document.getElementById('tBody').innerHTML = opTable('Internal',6,o=>`<tr><td>${esc(o.product)}</td><td class="mono">${o.qty}</td>
+    <td>${esc(o.from)} → ${esc(o.to)}</td><td class="mono">${o.date}</td><td>${badge(o.status)}</td>
+    <td>${o.status==='Done'?'—':`<button class="btn small" onclick="validateTransfer(${o.id})">Validate</button>`}</td></tr>`);
+}
+function addTransfer(){
+  const qty=Number(document.getElementById('tQty').value)||0;
+  state.ops.push({id:++state.nextId,type:'Internal',status:'Draft',product:document.getElementById('tProduct').value,
+    qty, from:document.getElementById('tFrom').value, to:document.getElementById('tTo').value, date:today()});
+  save(); transfers();
+}
+function validateTransfer(id){
+  const o=state.ops.find(x=>x.id===id); const p=productByName(o.product);
+  if(p) p.location=o.to;
+  o.status='Done'; addLedger('Internal',o.product,o.qty+' (moved)',o.from+' → '+o.to);
+  save(); transfers();
+}
+
+/* ---------- adjustments ---------- */
+function adjustments(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Stock Adjustments</h2></div>
+    <div class="section-card"><h3>Count & adjust</h3>
+      <div class="formrow">
+        <div class="field"><label>Product / location</label><select id="aProduct">${state.products.map(p=>`<option>${esc(p.name)} — ${esc(p.location)} (recorded: ${p.stock})</option>`).join('')}</select></div>
+        <div class="field"><label>Counted quantity</label><input id="aQty" type="number" value="0"></div>
+      </div>
+      <button class="btn" onclick="addAdjustment()">Apply adjustment</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th><th>Recorded → Counted</th><th>Diff</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody id="aBody"></tbody></table></div>
+  </div>`));
+  renderAdjustments();
+}
+function renderAdjustments(){
+  document.getElementById('aBody').innerHTML = opTable('Adjustment',5,o=>`<tr><td>${esc(o.product)}</td><td class="mono">${o.before} → ${o.qty}</td>
+    <td class="mono">${o.diff>0?'+':''}${o.diff}</td><td class="mono">${o.date}</td><td>${badge(o.status)}</td></tr>`);
+}
+function addAdjustment(){
+  const idx=document.getElementById('aProduct').selectedIndex; const p=state.products[idx];
+  const counted=Number(document.getElementById('aQty').value)||0;
+  const diff=counted-p.stock; const before=p.stock;
+  p.stock=counted;
+  state.ops.push({id:++state.nextId,type:'Adjustment',status:'Done',product:p.name,qty:counted,before,diff,warehouse:p.location,date:today()});
+  addLedger('Adjustment',p.name,(diff>0?'+':'')+diff,p.location);
+  save(); adjustments();
+}
+
+/* ---------- history ---------- */
+function history(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Move History</h2></div>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Qty</th><th>Location</th></tr></thead>
+    <tbody>${state.ledger.length? state.ledger.map(l=>`<tr><td class="mono">${l.date}</td><td>${l.type}</td><td>${esc(l.product)}</td><td class="mono">${l.qty}</td><td>${esc(l.loc)}</td></tr>`).join('')
+      : `<tr><td colspan="5" class="emptystate">No stock movements logged yet.</td></tr>`}</tbody></table></div>
+  </div>`));
+}
+
+/* ---------- settings ---------- */
+function settings(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>Settings — Warehouses</h2></div>
+    <div class="section-card"><h3>Add warehouse / location</h3>
+      <div class="formrow"><div class="field"><label>Name</label><input id="wName" placeholder="e.g. Rack C"></div></div>
+      <button class="btn" onclick="addWarehouse()">Add</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Warehouse / Location</th><th></th></tr></thead>
+    <tbody id="wBody"></tbody></table></div>
+  </div>`));
+  renderWarehouses();
+}
+function renderWarehouses(){
+  document.getElementById('wBody').innerHTML = state.warehouses.map((w,i)=>`<tr><td>${esc(w)}</td>
+    <td><button class="btn small danger" onclick="removeWarehouse(${i})">Remove</button></td></tr>`).join('');
+}
+function addWarehouse(){
+  const v=document.getElementById('wName').value.trim(); if(!v) return;
+  state.warehouses.push(v); save(); settings();
+}
+function removeWarehouse(i){ state.warehouses.splice(i,1); save(); settings(); }
+
+/* ---------- profile ---------- */
+function profile(){
+  const main=document.getElementById('main');
+  main.appendChild(el(`<div class="view">
+    <div class="topbar"><h2>My Profile</h2></div>
+    <div class="section-card" style="max-width:380px;">
+      <div class="field"><label>Name</label><input id="uName" value="${esc(state.user.name)}"></div>
+      <div class="field"><label>Email</label><input id="uEmail" value="${esc(state.user.email)}"></div>
+      <div class="field"><label>Role</label><input value="${esc(state.user.role)}" disabled></div>
+      <button class="btn" onclick="saveProfile()">Save changes</button>
+      <p id="pMsg" class="msg hidden">Profile updated.</p>
+    </div>
+  </div>`));
+}
+function saveProfile(){
+  state.user.name=document.getElementById('uName').value; state.user.email=document.getElementById('uEmail').value;
+  save(); document.getElementById('pMsg').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
